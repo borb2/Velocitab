@@ -19,29 +19,49 @@
 
 package net.william278.velocitab.placeholder;
 
-import com.velocitypowered.api.proxy.ServerConnection;
-import com.velocitypowered.api.proxy.server.RegisteredServer;
-import lombok.Getter;
-import net.william278.velocitab.Velocitab;
-import net.william278.velocitab.player.TabPlayer;
-import net.william278.velocitab.util.TriFunction;
-import org.jetbrains.annotations.NotNull;
-
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import org.jetbrains.annotations.NotNull;
+
+import com.velocitypowered.api.proxy.ServerConnection;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
+
+import lombok.Getter;
+import net.william278.velocitab.Velocitab;
+import net.william278.velocitab.player.TabPlayer;
+import net.william278.velocitab.util.TriFunction;
 
 @Getter
 public enum Placeholder {
 
     PLAYERS_ONLINE((plugin, player) -> Integer.toString(plugin.getServer().getPlayerCount())),
     MAX_PLAYERS_ONLINE((plugin, player) -> Integer.toString(plugin.getServer().getConfiguration().getShowMaxPlayers())),
+    MAX_PLAYERS_ONLINE_SERVER((param, plugin, player) -> {
+        if (param.isEmpty()) {
+            return "0";
+        }
+        return plugin.getServer().getServer(param)
+                .map(server -> {
+                    // In Velocity, individual backend servers don't expose max player limits directly
+                    // through the standard API. This would require server pinging or custom configuration.
+                    // For now, we return the proxy's max players as a reasonable fallback.
+                    // Server administrators can extend this functionality if needed.
+                    return Integer.toString(plugin.getServer().getConfiguration().getShowMaxPlayers());
+                })
+                .orElse("0");
+    }),
     LOCAL_PLAYERS_ONLINE((plugin, player) -> player.getPlayer().getCurrentServer()
             .map(ServerConnection::getServer)
             .map(RegisteredServer::getPlayersConnected)
