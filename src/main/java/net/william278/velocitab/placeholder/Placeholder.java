@@ -48,17 +48,23 @@ public enum Placeholder {
 
     PLAYERS_ONLINE((plugin, player) -> Integer.toString(plugin.getServer().getPlayerCount())),
     MAX_PLAYERS_ONLINE((plugin, player) -> Integer.toString(plugin.getServer().getConfiguration().getShowMaxPlayers())),
-    MAX_PLAYERS_ONLINE_SERVER((param, plugin, player) -> {
+    SERVER_MAX_PLAYERS((param, plugin, player) -> {
         if (param.isEmpty()) {
             return "0";
         }
         return plugin.getServer().getServer(param)
                 .map(server -> {
-                    // In Velocity, individual backend servers don't expose max player limits directly
-                    // through the standard API. This would require server pinging or custom configuration.
-                    // For now, we return the proxy's max players as a reasonable fallback.
-                    // Server administrators can extend this functionality if needed.
-                    return Integer.toString(plugin.getServer().getConfiguration().getShowMaxPlayers());
+                    try {
+                        // Ping the backend server to get its actual max player count
+                        return server.ping().thenApply(serverPing -> 
+                            serverPing.getPlayers()
+                                .map(players -> Integer.toString(players.getMax()))
+                                .orElse("0")
+                        ).get(1, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        // If pinging fails, return 0 as fallback
+                        return "0";
+                    }
                 })
                 .orElse("0");
     }),
