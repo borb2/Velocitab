@@ -423,6 +423,21 @@ public class ScoreboardManager {
                     .mapping(0x60, MINECRAFT_1_20_5, false)
                     .mapping(0x67, MINECRAFT_1_21_2, false)
                     .mapping(0x66, MINECRAFT_1_21_5, false);
+            
+            // Try to add newer version mappings if they exist in VelocityCTD
+            try {
+                ProtocolVersion v1_21_7 = ProtocolVersion.valueOf("MINECRAFT_1_21_7");
+                packetRegistration.mapping(0x66, v1_21_7, false); // Assuming same packet ID as 1.21.5
+            } catch (IllegalArgumentException ignored) {
+                // Version doesn't exist, continue
+            }
+            
+            try {
+                ProtocolVersion v1_21_8 = ProtocolVersion.valueOf("MINECRAFT_1_21_8");
+                packetRegistration.mapping(0x66, v1_21_8, false); // Assuming same packet ID as 1.21.5
+            } catch (IllegalArgumentException ignored) {
+                // Version doesn't exist, continue
+            }
             packetRegistration.register();
         } catch (Throwable e) {
             plugin.log(Level.ERROR, "Failed to register UpdateTeamsPacket", e);

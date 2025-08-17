@@ -35,10 +35,32 @@ import java.util.Set;
 public class Protocol770Adapter extends Protocol765Adapter {
 
     public Protocol770Adapter(@NotNull Velocitab plugin) {
-        super(plugin, Set.of(
-                ProtocolVersion.MINECRAFT_1_21_5,
-                ProtocolVersion.MINECRAFT_1_21_6
-        ));
+        super(plugin, buildProtocolVersions());
+    }
+    
+    private static Set<ProtocolVersion> buildProtocolVersions() {
+        Set<ProtocolVersion> versions = new java.util.HashSet<>();
+        versions.add(ProtocolVersion.MINECRAFT_1_21_5);
+        versions.add(ProtocolVersion.MINECRAFT_1_21_6);
+        
+        // Try to add newer versions if they exist in VelocityCTD
+        try {
+            // Check for MINECRAFT_1_21_7
+            ProtocolVersion v1_21_7 = ProtocolVersion.valueOf("MINECRAFT_1_21_7");
+            versions.add(v1_21_7);
+        } catch (IllegalArgumentException ignored) {
+            // Version doesn't exist, continue
+        }
+        
+        try {
+            // Check for MINECRAFT_1_21_8
+            ProtocolVersion v1_21_8 = ProtocolVersion.valueOf("MINECRAFT_1_21_8");
+            versions.add(v1_21_8);
+        } catch (IllegalArgumentException ignored) {
+            // Version doesn't exist, continue
+        }
+        
+        return versions;
     }
 
     @Override
