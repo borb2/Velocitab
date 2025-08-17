@@ -49,11 +49,22 @@ public class Metadata {
     }
 
     public void validateBuild(@NotNull Version version) {
-        int serverBuild = getBuildNumber(version.toString());
-        if (serverBuild < velocityMinimumBuild) {
-            throw new IllegalStateException("Your Velocity build version (#" + serverBuild + ") is not supported! " +
-                    "Disabling Velocitab. Please update to at least Velocity v" + velocityApiVersion
-                    + " build #" + velocityMinimumBuild + " or newer.");
+        try {
+            int serverBuild = getBuildNumber(version.toString());
+            if (serverBuild < velocityMinimumBuild) {
+                throw new IllegalStateException("Your Velocity build version (#" + serverBuild + ") is not supported! " +
+                        "Disabling Velocitab. Please update to at least Velocity v" + velocityApiVersion
+                        + " build #" + velocityMinimumBuild + " or newer.");
+            }
+        } catch (IllegalArgumentException e) {
+            // If we can't parse the build number, check if it's a development/snapshot version
+            // and skip build validation for forks or custom builds
+            if (isDevOrSnapshotVersion(version.toString())) {
+                // Skip build validation for development/snapshot versions and forks
+                return;
+            }
+            // Re-throw the exception if it's not a recognized development version
+            throw e;
         }
     }
 
@@ -66,11 +77,43 @@ public class Metadata {
     }
 
     private int getBuildNumber(@NotNull String proxyVersion) {
-        final Matcher matcher = Pattern.compile(".*-b(\\d+).*").matcher(proxyVersion);
-        if (matcher.find(1)) {
-            return Integer.parseInt(matcher.group(1));
+        // Try multiple build number patterns
+        Pattern[] patterns = {
+            Pattern.compile(".*-b(\\d+).*"),           // Standard Velocity format: -b513
+            Pattern.compile(".*build[\\s-](\\d+).*"),  // Alternative format: build 513, build-513
+            Pattern.compile(".*#(\\d+).*"),            // Hash format: #513
+            Pattern.compile(".*(\\d{3,}).*")           // Any 3+ digit number as fallback
+        };
+        
+        for (Pattern pattern : patterns) {
+            final Matcher matcher = pattern.matcher(proxyVersion);
+            if (matcher.find()) {
+                try {
+                    return Integer.parseInt(matcher.group(1));
+                } catch (NumberFormatException ignored) {
+                    // Continue to next pattern
+                }
+            }
         }
+        
         throw new IllegalArgumentException("No build number found for proxy version: " + proxyVersion);
+    }
+    
+    private boolean isDevOrSnapshotVersion(@NotNull String proxyVersion) {
+        String lowerVersion = proxyVersion.toLowerCase();
+        
+        // Check for common development/snapshot indicators
+        return lowerVersion.contains("snapshot") ||
+               lowerVersion.contains("dev") ||
+               lowerVersion.contains("git-") ||
+               lowerVersion.contains("commit-") ||
+               lowerVersion.contains("fork") ||
+               lowerVersion.contains("custom") ||
+               lowerVersion.contains("beta") ||
+               lowerVersion.contains("alpha") ||
+               lowerVersion.contains("rc") ||
+               // VelocityCTD and other forks often have git hashes in parentheses
+               lowerVersion.matches(".*\\(git-[a-f0-9]+\\).*");
     }
 
 }

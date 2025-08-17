@@ -58,8 +58,15 @@ dependencies {
 }
 
 processResources {
-    def tokenMap = rootProject.ext.properties
-    tokenMap.merge("grgit",'',(s, s2) -> s)
+    def tokenMap = [:]
+    rootProject.ext.properties.each { key, value ->
+        if (value instanceof String) {
+            tokenMap[key] = value
+        } else {
+            tokenMap[key] = value.toString()
+        }
+    }
+    tokenMap['grgit'] = ''
     filesMatching(['**/*.json', '**/*.yml']) {
         filter ReplaceTokens as Class, beginToken: '${', endToken: '}',
                 tokens: tokenMap
@@ -89,12 +96,13 @@ java {
 }
 
 shadowJar {
-    dependencies {
-        exclude dependency(':slf4j-api')
-        exclude dependency('org.json:json')
-        exclude dependency('org.apache.commons:commons-lang3')
-    }
-
+    // Exclude dependencies that should not be included
+    exclude 'META-INF/maven/**'
+    exclude 'META-INF/DEPENDENCIES'
+    exclude 'META-INF/LICENSE*'
+    exclude 'META-INF/NOTICE*'
+    
+    // Relocate packages to avoid conflicts
     relocate 'org.apache.commons.text', 'net.william278.velocitab.libraries.commons.text'
     relocate 'org.jetbrains', 'net.william278.velocitab.libraries'
     relocate 'org.intellij', 'net.william278.velocitab.libraries'
@@ -110,15 +118,45 @@ shadowJar {
     relocate 'net.jodah.expiringmap', 'net.william278.velocitab.libraries.expiringmap'
     relocate 'org.mvel2', 'net.william278.velocitab.libraries.mvel2'
 
+    // Output configuration
     destinationDirectory.set(file("$rootDir/target"))
     archiveClassifier.set('')
-
-    minimize() {
-        exclude dependency('commons-logging:commons-logging')
+    archiveBaseName.set('velocitab')
+    
+    // Ensure all implementation dependencies are included
+    configurations = [project.configurations.runtimeClasspath]
+    
+    // Don't minimize to ensure all dependencies are included
+    minimize {
+        exclude(dependency('org.apache.commons:.*'))
+        exclude(dependency('net.william278:.*'))
+        exclude(dependency('de.exlll:.*'))
+        exclude(dependency('org.mvel:.*'))
+        exclude(dependency('net.jodah:.*'))
+        exclude(dependency('org.bstats:.*'))
     }
 }
+// Make build depend on shadowJar instead of regular jar
 jar.dependsOn shadowJar
+build.dependsOn shadowJar
 clean.delete "$rootDir/target"
+
+// Add a task to build only the shadowJar
+task buildShadowJar(type: DefaultTask) {
+    description = 'Builds the shadow JAR with all dependencies included'
+    group = 'build'
+    dependsOn shadowJar
+    doLast {
+        println "ShadowJar built successfully!"
+        def jarFile = file("$rootDir/target/velocitab-${version}.jar")
+        if (jarFile.exists()) {
+            println "JAR location: ${jarFile.absolutePath}"
+            println "JAR size: ${jarFile.length() / 1024 / 1024} MB"
+        } else {
+            println "Warning: JAR file not found at expected location"
+        }
+    }
+}
 
 publishing {
     repositories {
